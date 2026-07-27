@@ -1,0 +1,918 @@
+openapi: 3.0.3
+info:
+  title: 花语心途 API
+  description: |
+    女性向养成小游戏后端 API 文档。
+
+    **认证方式**
+    - 玩家接口：`Authorization: Bearer <token>`（先调用 `/auth/login` 获取）
+    - 管理接口：额外 Header `X-Admin-Key: dev_admin_key`
+  version: 1.0.0
+  contact:
+    name: 花语心途
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: 本地开发
+
+tags:
+  - name: 系统
+  - name: 认证
+  - name: 用户
+  - name: 角色养成
+  - name: 主线剧情
+  - name: 商店
+  - name: 背包
+  - name: 每日签到
+  - name: 成就
+  - name: 经济
+  - name: 学习技能
+  - name: 房间装饰
+  - name: 虚拟地图
+  - name: 传感器
+  - name: 管理后台
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+    AdminKey:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    LoginRequest:
+      type: object
+      properties:
+        account:
+          type: string
+          example: xiaoxian
+        password:
+          type: string
+          example: "123456"
+        code:
+          type: string
+          example: demo_user
+          description: 微信小游戏 code（与 account 二选一）
+        nickname:
+          type: string
+          example: 小仙女
+        avatar_url:
+          type: string
+    RegisterRequest:
+      type: object
+      required: [account, password]
+      properties:
+        account:
+          type: string
+          example: xiaoxian
+        password:
+          type: string
+          example: "123456"
+        password_confirmation:
+          type: string
+          example: "123456"
+        nickname:
+          type: string
+          example: 小仙女
+    CareRequest:
+      type: object
+      required: [action_type]
+      properties:
+        action_type:
+          type: string
+          enum: [feed, play, dress, talk, rest]
+        item_id:
+          type: integer
+    PurchaseRequest:
+      type: object
+      required: [item_id]
+      properties:
+        item_id:
+          type: integer
+        quantity:
+          type: integer
+          default: 1
+    MapMoveRequest:
+      type: object
+      required: [map_id, pos_x, pos_y]
+      properties:
+        map_id:
+          type: integer
+        pos_x:
+          type: integer
+        pos_y:
+          type: integer
+    EventCompleteRequest:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum: [success, fail]
+          default: success
+        result_data:
+          type: object
+    SensorTriggerRequest:
+      type: object
+      required: [sensor_type, sensor_value]
+      properties:
+        sensor_type:
+          type: string
+          enum: [motion, proximity, temperature, humidity, light, sound, accelerometer, gyroscope, custom]
+        sensor_value:
+          type: number
+        sensor_key:
+          type: string
+        map_id:
+          type: integer
+
+paths:
+  /health:
+    get:
+      tags: [系统]
+      summary: 健康检查
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/auth/register:
+    post:
+      tags: [认证]
+      summary: 注册账号
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: 注册成功，返回 token
+        "422":
+          description: 参数错误或账号已存在
+
+  /api/v1/auth/login:
+    post:
+      tags: [认证]
+      summary: 登录（账号密码或微信 code）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 登录成功，返回 token
+        "401":
+          description: 账号或密码错误
+
+  /api/v1/auth/logout:
+    post:
+      tags: [认证]
+      summary: 退出登录
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: 已退出
+
+  /api/v1/auth/me:
+    get:
+      tags: [认证]
+      summary: 当前用户状态
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: 用户信息、角色、钱包、成就等
+        "401":
+          description: 未登录
+
+  /api/v1/users/profile:
+    get:
+      tags: [用户]
+      summary: 获取用户资料
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [用户]
+      summary: 更新用户资料
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname: { type: string }
+                avatar_url: { type: string }
+                tutorial_completed: { type: boolean }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/characters:
+    get:
+      tags: [角色养成]
+      summary: 角色列表
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [角色养成]
+      summary: 创建角色
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                is_active: { type: boolean }
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/characters/{id}:
+    get:
+      tags: [角色养成]
+      summary: 角色详情
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [角色养成]
+      summary: 更新角色
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/characters/{id}/care:
+    post:
+      tags: [角色养成]
+      summary: 日常互动（喂食/玩耍/换装/聊天/休息）
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareRequest"
+      responses:
+        "200":
+          description: 互动结果与属性变化
+
+  /api/v1/characters/{id}/care_logs:
+    get:
+      tags: [角色养成]
+      summary: 互动记录
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/story/chapters:
+    get:
+      tags: [主线剧情]
+      summary: 章节与进度列表
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/story/episodes/{id}/start:
+    post:
+      tags: [主线剧情]
+      summary: 开始剧情
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/story/episodes/{id}/complete:
+    post:
+      tags: [主线剧情]
+      summary: 完成剧情
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                choice: { type: string }
+      responses:
+        "200":
+          description: 奖励发放
+
+  /api/v1/shop/items:
+    get:
+      tags: [商店]
+      summary: 商品列表
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: item_type
+          in: query
+          schema:
+            type: string
+            enum: [food, outfit, gift, consumable]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/shop/purchase:
+    post:
+      tags: [商店]
+      summary: 购买商品
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequest"
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/inventory:
+    get:
+      tags: [背包]
+      summary: 背包列表
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/inventory/use:
+    post:
+      tags: [背包]
+      summary: 使用物品
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [character_id, item_id]
+              properties:
+                character_id: { type: integer }
+                item_id: { type: integer }
+                quantity: { type: integer, default: 1 }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/daily/status:
+    get:
+      tags: [每日签到]
+      summary: 签到状态
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/daily/check_in:
+    post:
+      tags: [每日签到]
+      summary: 每日签到
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: 签到奖励
+
+  /api/v1/achievements:
+    get:
+      tags: [成就]
+      summary: 成就列表与进度
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/economy/wallet:
+    get:
+      tags: [经济]
+      summary: 钱包与金币/经验流水
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/learning/categories:
+    get:
+      tags: [学习技能]
+      summary: 学习分类与课程
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/learning/skills:
+    get:
+      tags: [学习技能]
+      summary: 全部技能概览
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/learning/skills/{id}:
+    get:
+      tags: [学习技能]
+      summary: 单技能养成详情（里程碑/课程进度）
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/learning/courses/{id}/start:
+    post:
+      tags: [学习技能]
+      summary: 开始学习课程
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/learning/courses/{id}/complete:
+    post:
+      tags: [学习技能]
+      summary: 完成课程
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 技能点与奖励
+
+  /api/v1/room:
+    get:
+      tags: [房间装饰]
+      summary: 我的房间
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [房间装饰]
+      summary: 更新房间信息
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                room_name: { type: string }
+                wallpaper: { type: string }
+                floor_style: { type: string }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/room/shop:
+    get:
+      tags: [房间装饰]
+      summary: 装饰商店
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: slot_type
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/room/purchase:
+    post:
+      tags: [房间装饰]
+      summary: 购买装饰
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decoration_id]
+              properties:
+                decoration_id: { type: integer }
+                quantity: { type: integer, default: 1 }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/room/place:
+    post:
+      tags: [房间装饰]
+      summary: 放置装饰
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decoration_id, slot_type]
+              properties:
+                decoration_id: { type: integer }
+                slot_type: { type: string }
+                position: { type: object }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/room/remove:
+    post:
+      tags: [房间装饰]
+      summary: 移除装饰
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slot_type, index]
+              properties:
+                slot_type: { type: string }
+                index: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/map/enter:
+    post:
+      tags: [虚拟地图]
+      summary: 进入地图
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                map_id: { type: integer }
+      responses:
+        "200":
+          description: 地图、位置、区域、待处理事件
+
+  /api/v1/map/current:
+    get:
+      tags: [虚拟地图]
+      summary: 当前地图状态
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/map/move:
+    post:
+      tags: [虚拟地图]
+      summary: 移动
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MapMoveRequest"
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/map/explore:
+    post:
+      tags: [虚拟地图]
+      summary: 探索（触发随机事件）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                map_id: { type: integer }
+      responses:
+        "200":
+          description: 随机事件
+
+  /api/v1/map/events:
+    get:
+      tags: [虚拟地图]
+      summary: 事件列表
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/map/events/{id}/start:
+    post:
+      tags: [虚拟地图]
+      summary: 开始事件
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/map/events/{id}/complete:
+    post:
+      tags: [虚拟地图]
+      summary: 完成事件
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventCompleteRequest"
+      responses:
+        "200":
+          description: 奖励
+
+  /api/v1/sensors/trigger:
+    post:
+      tags: [传感器]
+      summary: 传感器触发事件（玩家端）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SensorTriggerRequest"
+      responses:
+        "200":
+          description: 触发的事件
+
+  /api/v1/admin/config/overview:
+    get:
+      tags: [管理后台]
+      summary: 配置总览
+      security: [{ AdminKey: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/admin/maps:
+    get:
+      tags: [管理后台]
+      summary: 地图列表
+      security: [{ AdminKey: [] }]
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [管理后台]
+      summary: 创建地图
+      security: [{ AdminKey: [] }]
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/admin/maps/{id}:
+    get:
+      tags: [管理后台]
+      summary: 地图详情
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [管理后台]
+      summary: 更新地图
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    delete:
+      tags: [管理后台]
+      summary: 删除地图
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /api/v1/admin/zones:
+    get:
+      tags: [管理后台]
+      summary: 区域列表
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: game_map_id
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [管理后台]
+      summary: 创建区域
+      security: [{ AdminKey: [] }]
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/admin/event_templates:
+    get:
+      tags: [管理后台]
+      summary: 随机事件模板列表
+      security: [{ AdminKey: [] }]
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [管理后台]
+      summary: 创建事件模板
+      security: [{ AdminKey: [] }]
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/admin/event_templates/{id}:
+    get:
+      tags: [管理后台]
+      summary: 事件模板详情
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [管理后台]
+      summary: 更新事件模板
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    delete:
+      tags: [管理后台]
+      summary: 删除事件模板
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /api/v1/admin/sensor_triggers:
+    get:
+      tags: [管理后台]
+      summary: 传感器触发配置列表
+      security: [{ AdminKey: [] }]
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [管理后台]
+      summary: 创建传感器触发
+      security: [{ AdminKey: [] }]
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/admin/sensor_triggers/fire:
+    post:
+      tags: [管理后台]
+      summary: 硬件/后台触发传感器事件
+      security: [{ AdminKey: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, sensor_type, sensor_value]
+              properties:
+                user_id: { type: integer }
+                sensor_type: { type: string }
+                sensor_value: { type: number }
+                sensor_key: { type: string }
+                map_id: { type: integer }
+      responses:
+        "200":
+          description: 触发的事件
+
+  /api/v1/admin/learning_categories:
+    get:
+      tags: [管理后台]
+      summary: 技能分类列表
+      security: [{ AdminKey: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/admin/learning_categories/{id}:
+    get:
+      tags: [管理后台]
+      summary: 技能分类详情
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [管理后台]
+      summary: 更新技能里程碑配置
+      security: [{ AdminKey: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
