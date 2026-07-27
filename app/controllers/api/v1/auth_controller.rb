@@ -61,6 +61,7 @@ module Api
         render json: {
           user: user.as_json,
           character: character&.as_json,
+          needs_customization: character.nil? || character.needs_customization?,
           daily_status: DailyRewardService.status(user),
           wallet: EconomyService.wallet_summary(user),
           achievement_stats: AchievementService.stats(user),

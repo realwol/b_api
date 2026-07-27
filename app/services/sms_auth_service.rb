@@ -15,7 +15,7 @@ module SmsAuthService
       delivery = Sms::Client.deliver!(phone: normalized, code: code)
       SmsCode.issue!(normalized, code, ttl: CODE_TTL)
 
-      result = { ok: true, message: "验证码已发送，请注意查收短信" }
+      result = { ok: true, message: "验证码已发送，请注意查收短信（测试可用 123）" }
       result[:dev_code] = code if delivery == :logged
       result
     end

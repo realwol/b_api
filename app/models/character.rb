@@ -16,12 +16,34 @@ class Character < ApplicationRecord
 
   scope :active, -> { where(is_active: true) }
 
+  APPEARANCE_OPTIONS = {
+    "gender" => %w[female male],
+    "hairstyle" => %w[long_black short_brown twin_tail curly_blonde ponytail],
+    "personality" => %w[gentle lively cool elegant],
+    "face" => %w[round oval heart square],
+    "height" => %w[petite medium tall]
+  }.freeze
+
   DEFAULT_APPEARANCE = {
+    "gender" => "female",
+    "hairstyle" => "long_black",
+    "personality" => "gentle",
+    "face" => "round",
+    "height" => "medium",
     "hair" => "long_black",
     "outfit" => "default_dress",
     "skin_tone" => "fair",
-    "accessory" => "ribbon"
+    "accessory" => "ribbon",
+    "customized" => false
   }.freeze
+
+  def customized?
+    appearance.is_a?(Hash) && appearance["customized"] == true
+  end
+
+  def needs_customization?
+    !customized?
+  end
 
   EXP_PER_LEVEL = 100
 

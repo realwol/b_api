@@ -14,9 +14,9 @@ module AuthService
       user.regenerate_auth_token! if user.persisted?
       user.save!
 
-      bootstrap_user!(user) if user.characters.empty?
+      bootstrap_user!(user, create_character: false)
 
-      { user: user.as_json, token: user.auth_token }
+      auth_payload(user)
     end
 
     def register(account:, password:, password_confirmation:, nickname: nil)
@@ -36,9 +36,9 @@ module AuthService
       )
       user.save!
 
-      bootstrap_user!(user)
+      bootstrap_user!(user, create_character: false)
 
-      { user: user.as_json, token: user.auth_token }
+      auth_payload(user)
     end
 
     def login_with_account(account:, password:)
@@ -49,23 +49,26 @@ module AuthService
       end
 
       user.regenerate_auth_token!
-      { user: user.as_json, token: user.auth_token }
+      auth_payload(user)
     end
 
     def login_with_sms(phone:, code:)
       normalized = SmsAuthService.verify!(phone: phone, code: code)
       user = User.find_by(phone: normalized)
+      is_new = user.nil?
       unless user
         user = User.create!(
           phone: normalized,
           openid: synthetic_openid("phone_#{normalized}"),
           nickname: "旅人#{normalized[-4..]}"
         )
-        bootstrap_user!(user)
+        bootstrap_user!(user, create_character: false)
+      else
+        bootstrap_user!(user, create_character: false)
       end
 
       user.regenerate_auth_token!
-      { user: user.as_json, token: user.auth_token }
+      auth_payload(user, is_new: is_new)
     end
 
     def logout(user)
@@ -103,8 +106,8 @@ module AuthService
       "account_#{Digest::SHA256.hexdigest(account)[0, 24]}"
     end
 
-    def bootstrap_user!(user)
-      if user.characters.empty?
+    def bootstrap_user!(user, create_character: true)
+      if create_character && user.characters.empty?
         CharacterCreationService.create_default_character!(user)
       end
 
@@ -112,6 +115,16 @@ module AuthService
       LearningService.initialize_progress!(user)
       RoomService.setup_room!(user) unless user.user_room
       MapService.enter!(user) rescue nil
+    end
+
+    def auth_payload(user, is_new: false)
+      character = user.active_character
+      {
+        user: user.as_json,
+        token: user.auth_token,
+        needs_customization: character.nil? || character.needs_customization?,
+        is_new_user: is_new
+      }
     end
 
     def resolve_openid(code)

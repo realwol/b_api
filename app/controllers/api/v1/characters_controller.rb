@@ -21,6 +21,19 @@ module Api
         render json: { character: character.as_json }, status: :created
       end
 
+      def customize
+        character = current_user.active_character
+        if character&.needs_customization?
+          character = CharacterCreationService.update_customization!(current_user, character, customize_params)
+        else
+          character = CharacterCreationService.complete_customization!(current_user, customize_params)
+        end
+        render json: {
+          character: character.as_json,
+          needs_customization: false
+        }
+      end
+
       def update
         @character.update!(character_params)
         render json: { character: @character.as_json }
@@ -50,6 +63,10 @@ module Api
 
       def character_params
         params.permit(:name, :is_active, appearance: {})
+      end
+
+      def customize_params
+        params.permit(:name, :gender, :hairstyle, :personality, :face, :height)
       end
     end
   end

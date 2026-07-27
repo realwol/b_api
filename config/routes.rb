@@ -11,6 +11,9 @@ Rails.application.routes.draw do
       patch "users/profile", to: "users#update"
 
       resources :characters, only: [:index, :show, :create, :update] do
+        collection do
+          post :customize
+        end
         member do
           post :care
           get :care_logs
