@@ -2,13 +2,13 @@
 
 class EventRewardService
   class << self
-    def grant!(user, rewards_config, source_description:)
+    def grant!(user, rewards_config, source_description:, game_map: nil, ref: nil)
       config = rewards_config.with_indifferent_access
       granted = { coins: 0, gems: 0, exp: 0, items: [], decorations: [] }
 
       coins = roll_amount(config[:coins_min], config[:coins_max])
       if coins.positive?
-        EconomyService.add_coins!(user, coins, source: "map_event", description: source_description)
+        EconomyService.add_coins!(user, coins, source: "map_event", description: source_description, game_map: game_map)
         granted[:coins] = coins
       end
 
@@ -20,7 +20,7 @@ class EventRewardService
 
       exp = roll_amount(config[:exp_min], config[:exp_max])
       if exp.positive?
-        EconomyService.add_exp!(user, exp, source: "map_event", description: source_description)
+        EconomyService.add_exp!(user, exp, source: "map_event", description: source_description, game_map: game_map)
         granted[:exp] = exp
       end
 
@@ -51,6 +51,11 @@ class EventRewardService
         ud.save!
         granted[:decorations] << { decoration_id: decoration.id, name: decoration.name, quantity: qty }
       end
+
+      PlayerActivityLogger.log!(
+        user, :reward_grant, game_map: game_map, ref: ref,
+        payload: { description: source_description, granted: granted }
+      ) if granted.values.any? { |v| v.is_a?(Integer) ? v.positive? : v.present? }
 
       granted
     end

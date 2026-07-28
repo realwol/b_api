@@ -2,7 +2,7 @@
 
 class EconomyService
   class << self
-    def add_coins!(user, amount, source:, description: nil)
+    def add_coins!(user, amount, source:, description: nil, game_map: nil)
       return user if amount.zero?
 
       user.transaction do
@@ -12,7 +12,8 @@ class EconomyService
           amount: amount,
           balance_after: user.coins,
           source: source,
-          description: description
+          description: description,
+          game_map_id: game_map&.id
         )
       end
       AchievementService.check!(user, :coins_earned)
@@ -49,7 +50,7 @@ class EconomyService
       user
     end
 
-    def add_exp!(user, amount, source:, description: nil, character: nil)
+    def add_exp!(user, amount, source:, description: nil, character: nil, game_map: nil)
       return user if amount.zero?
 
       user.transaction do
@@ -65,7 +66,8 @@ class EconomyService
           amount: amount,
           total_after: user.total_exp,
           source: source,
-          description: description
+          description: description,
+          game_map_id: game_map&.id
         )
       end
 

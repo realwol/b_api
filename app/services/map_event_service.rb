@@ -2,13 +2,11 @@
 
 class MapEventService
   class << self
-    def roll_event!(user, game_map:, pos_x:, pos_y:, zone: nil, trigger_source: "explore", sensor_key: nil)
+    def roll_event!(user, game_map:, pos_x:, pos_y:, zone: nil, trigger_source: "explore", sensor_key: nil, template: nil)
       zone ||= find_zone(game_map, pos_x, pos_y)
-      templates = eligible_templates(user, game_map, zone)
+      template ||= weighted_random(eligible_templates(user, game_map, zone))
 
-      raise ApiError, "此区域暂无可用事件" if templates.empty?
-
-      template = weighted_random(templates)
+      raise ApiError, "此区域暂无可用事件" unless template
       position = resolve_position(game_map, zone, pos_x, pos_y)
 
       event = user.user_map_events.create!(
@@ -31,6 +29,10 @@ class MapEventService
       raise ApiError, "事件状态无效" unless event.status == "pending"
 
       event.update!(status: "in_progress", started_at: Time.current)
+      PlayerActivityLogger.log!(
+        user, :task_start, game_map: event.game_map, ref: event,
+        payload: { event_name: event.event_template&.name, trigger_source: event.trigger_source }
+      )
       { event: event.reload.as_json }
     end
 
@@ -45,7 +47,9 @@ class MapEventService
         granted = EventRewardService.grant!(
           user,
           template.rewards_config,
-          source_description: "地图事件：#{template.name}"
+          source_description: "地图事件：#{template.name}",
+          game_map: event.game_map,
+          ref: event
         )
         AchievementService.check!(user, :user_level)
       end
@@ -55,6 +59,11 @@ class MapEventService
         completed_at: Time.current,
         rewards_granted: granted,
         result_data: result_data
+      )
+
+      PlayerActivityLogger.log!(
+        user, :task_complete, game_map: event.game_map, ref: event,
+        payload: { outcome: outcome, rewards: granted, result_data: result_data }
       )
 
       {

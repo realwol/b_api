@@ -58,6 +58,13 @@ Rails.application.routes.draw do
       post "map/events/:id/start", to: "map#start_event"
       post "map/events/:id/complete", to: "map#complete_event"
 
+      # 景区地图
+      get "map/scenic", to: "map#scenic_list"
+      post "map/scenic/enter", to: "map#scenic_enter"
+      post "map/scenic/check_location", to: "map#check_location"
+      post "map/scenic/check_beacon", to: "map#check_beacon"
+      post "map/scenic/complete_task", to: "map#complete_task"
+
       # 传感器触发（玩家端）
       post "sensors/trigger", to: "sensors#trigger"
 
@@ -65,7 +72,11 @@ Rails.application.routes.draw do
       namespace :admin do
         get "config/overview", to: "config#overview"
 
-        resources :game_maps, path: "maps"
+        resources :game_maps, path: "maps" do
+          member do
+            post :upload_route_image
+          end
+        end
         resources :map_zones, path: "zones"
         resources :map_spawn_points, path: "spawn_points"
         resources :event_templates
@@ -75,6 +86,11 @@ Rails.application.routes.draw do
           end
         end
         resources :learning_categories, only: [:index, :show, :update]
+
+        resources :map_trigger_points, path: "trigger_points"
+        resources :map_tasks, path: "tasks"
+        get "player_activity", to: "player_activity#index"
+        get "users/:user_id/activity", to: "player_activity#user_summary"
       end
     end
   end

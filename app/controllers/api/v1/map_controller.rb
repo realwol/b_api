@@ -49,6 +49,48 @@ module Api
         )
         render json: result
       end
+
+      def scenic_list
+        render json: { maps: ScenicMapService.list_scenic_maps(current_user) }
+      end
+
+      def scenic_enter
+        result = ScenicMapService.enter!(current_user, map_id: params.require(:map_id))
+        render json: result
+      end
+
+      def check_location
+        result = ScenicMapService.check_location!(
+          current_user,
+          map_id: params.require(:map_id),
+          latitude: params.require(:latitude),
+          longitude: params.require(:longitude)
+        )
+        render json: result
+      end
+
+      def check_beacon
+        result = ScenicMapService.check_beacon!(
+          current_user,
+          map_id: params.require(:map_id),
+          uuid: params.require(:uuid),
+          major: params[:major],
+          minor: params[:minor],
+          rssi: params[:rssi]
+        )
+        render json: result
+      end
+
+      def complete_task
+        result = ScenicMapService.complete_task!(
+          current_user,
+          map_id: params.require(:map_id),
+          task_id: params.require(:task_id),
+          score: params[:score] || 0,
+          result_data: params[:result_data]&.to_unsafe_h || {}
+        )
+        render json: result
+      end
     end
   end
 end

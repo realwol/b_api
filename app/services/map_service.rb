@@ -14,15 +14,33 @@ class MapService
       state.entered_at = Time.current
       state.save!
 
+      PlayerActivityLogger.log!(
+        user, :map_enter, game_map: game_map,
+        payload: { map_type: game_map.map_type, pos_x: state.pos_x, pos_y: state.pos_y }
+      )
+
       pending = user.user_map_events.active_events.where(game_map: game_map).map(&:as_json)
 
-      {
+      payload = {
         map: game_map.as_json,
         state: state.as_json,
         zones: game_map.map_zones.active.map(&:as_json),
         spawn_points: game_map.map_spawn_points.active.map(&:as_json),
         pending_events: pending
       }
+
+      if game_map.scenic?
+        payload.merge!(
+          route_image_url: game_map.route_image_url || game_map.background_url,
+          route_polyline: game_map.route_polyline,
+          bounds_geo: game_map.bounds_geo,
+          center: { lat: game_map.center_lat, lng: game_map.center_lng },
+          trigger_points: game_map.map_trigger_points.active.order(:sort_order).map(&:as_json),
+          tasks: game_map.map_tasks.active.order(:sort_order).map(&:as_json)
+        )
+      end
+
+      payload
     end
 
     def current(user)

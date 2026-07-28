@@ -472,5 +472,104 @@ LearningCategory.find_each do |cat|
   ], display_config: { "badge_color" => cat.theme_color, "show_rank" => true })
 end
 
+# ========== 示例景区地图 ==========
+scenic_map = GameMap.find_or_create_by!(key: "demo_scenic_park") do |m|
+  m.name = "花语心途·示范景区"
+  m.description = "可在后台配置路线图、触发点、任务与积分奖励档位"
+  m.map_type = "scenic"
+  m.background_url = "/maps/scenic/demo_route.png"
+  m.route_image_url = "/maps/scenic/demo_route.png"
+  m.width = 1200
+  m.height = 800
+  m.center_lat = 31.2304
+  m.center_lng = 121.4737
+  m.default_zoom = 16
+  m.bounds_geo = { "sw" => [31.2280, 121.4700], "ne" => [31.2330, 121.4770] }
+  m.route_polyline = [
+    [31.2290, 121.4710], [31.2300, 121.4725], [31.2315, 121.4740], [31.2325, 121.4760]
+  ]
+  m.address = "示范景区入口"
+  m.city = "上海"
+  m.region = "黄浦区"
+  m.unlock_level = 1
+  m.spawn_interval_minutes = 0
+  m.is_active = true
+  m.is_default = false
+  m.config = { "theme" => "scenic", "allow_gps" => true, "allow_bluetooth" => true }
+end
+
+scenic_event = EventTemplate.find_or_create_by!(key: "scenic_quiz_game") do |t|
+  t.name = "景区知识问答"
+  t.event_type = "mini_game"
+  t.description = "到达触发点后开启的小游戏"
+  t.game_map = scenic_map
+  t.content = { "game_type" => "quiz", "time_limit" => 60 }
+  t.rewards_config = { "coins_min" => 30, "coins_max" => 80, "exp_min" => 10, "exp_max" => 30 }
+  t.sensor_triggerable = true
+  t.is_active = true
+end
+
+trigger1 = MapTriggerPoint.find_or_create_by!(game_map: scenic_map, key: "gate_gps") do |p|
+  p.name = "景区大门"
+  p.description = "GPS 进入景区范围触发"
+  p.trigger_type = "gps"
+  p.map_x = 120
+  p.map_y = 680
+  p.latitude = 31.2290
+  p.longitude = 121.4710
+  p.radius_m = 80
+  p.event_template = scenic_event
+  p.sort_order = 1
+  p.tier_level = 1
+  p.is_active = true
+end
+
+trigger2 = MapTriggerPoint.find_or_create_by!(game_map: scenic_map, key: "pavilion_ble") do |p|
+  p.name = "湖心亭蓝牙点"
+  p.description = "靠近蓝牙信标触发"
+  p.trigger_type = "bluetooth"
+  p.map_x = 620
+  p.map_y = 420
+  p.beacon_uuid = "00000000-0000-0000-0000-000000000001"
+  p.beacon_major = "1"
+  p.beacon_minor = "2"
+  p.event_template = scenic_event
+  p.sort_order = 2
+  p.tier_level = 2
+  p.is_active = true
+end
+
+MapTask.find_or_create_by!(game_map: scenic_map, key: "checkpoint_gate") do |task|
+  task.name = "到达景区大门"
+  task.description = "进入景区并完成欢迎任务"
+  task.task_type = "checkpoint"
+  task.tier_level = 1
+  task.sort_order = 1
+  task.map_trigger_point = trigger1
+  task.event_template = scenic_event
+  task.score_tiers = [
+    { "min_score" => 0, "max_score" => 59, "rewards_config" => { "coins_min" => 20, "coins_max" => 40, "exp_min" => 5, "exp_max" => 15 } },
+    { "min_score" => 60, "max_score" => 89, "rewards_config" => { "coins_min" => 50, "coins_max" => 100, "exp_min" => 20, "exp_max" => 40 } },
+    { "min_score" => 90, "max_score" => 100, "rewards_config" => { "coins_min" => 120, "coins_max" => 200, "exp_min" => 50, "exp_max" => 80, "gems_chance" => 0.3, "gems_amount" => 5 } }
+  ]
+  task.rewards_config = { "coins_min" => 30, "coins_max" => 60, "exp_min" => 10, "exp_max" => 20 }
+  task.is_active = true
+end
+
+MapTask.find_or_create_by!(game_map: scenic_map, key: "checkpoint_pavilion") do |task|
+  task.name = "湖心亭蓝牙挑战"
+  task.description = "靠近蓝牙信标并完成小游戏"
+  task.task_type = "mini_game"
+  task.tier_level = 2
+  task.sort_order = 2
+  task.map_trigger_point = trigger2
+  task.event_template = scenic_event
+  task.score_tiers = [
+    { "min_score" => 0, "max_score" => 100, "rewards_config" => { "coins_min" => 80, "coins_max" => 150, "exp_min" => 30, "exp_max" => 60 } }
+  ]
+  task.is_active = true
+end
+
 puts "Created map: #{main_map.name}, #{MapZone.count} zones, #{EventTemplate.count} events, #{SensorTrigger.count} sensors"
+puts "Scenic map: #{scenic_map.name} (#{scenic_map.map_trigger_points.count} triggers, #{scenic_map.map_tasks.count} tasks)"
 puts "Seed completed!"

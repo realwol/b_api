@@ -18,6 +18,8 @@ class User < ApplicationRecord
   has_one :user_room, dependent: :destroy
   has_many :user_map_states, dependent: :destroy
   has_many :user_map_events, dependent: :destroy
+  has_many :user_map_task_progresses, dependent: :destroy
+  has_many :player_activity_logs, dependent: :destroy
 
   validates :openid, presence: true, uniqueness: true
   validates :account, uniqueness: { case_sensitive: false }, allow_nil: true
