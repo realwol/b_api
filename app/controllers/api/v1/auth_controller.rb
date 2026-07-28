@@ -3,6 +3,8 @@
 module Api
   module V1
     class AuthController < ApplicationController
+      include TracksPlayerActivity
+
       def register
         result = AuthService.register(
           account: params.require(:account),
@@ -10,6 +12,8 @@ module Api
           password_confirmation: params[:password_confirmation] || params[:password],
           nickname: params[:nickname]
         )
+        user = User.find_by!(auth_token: result[:token])
+        PlayerActivityLogger.log_auth!(user, :auth_register, payload: { account: params[:account] }, request: request)
         render json: result, status: :created
       end
 
@@ -38,6 +42,16 @@ module Api
         else
           return render json: { error: "请提供手机号验证码、账号密码或微信 code" }, status: :unprocessable_entity
         end
+        user = User.find_by!(auth_token: result[:token])
+        PlayerActivityLogger.log_auth!(
+          user, :auth_login,
+          payload: {
+            method: params[:phone].present? ? "sms" : (params[:account].present? ? "account" : "wechat"),
+            is_new_user: result[:is_new_user],
+            needs_customization: result[:needs_customization]
+          },
+          request: request
+        )
         render json: result
       end
 
@@ -46,6 +60,7 @@ module Api
         user = AuthService.find_user_by_token(token)
         return render json: { error: "请先登录" }, status: :unauthorized unless user
 
+        PlayerActivityLogger.log_auth!(user, :auth_logout, request: request)
         AuthService.logout(user)
         render json: { ok: true }
       end
@@ -54,6 +69,15 @@ module Api
         token = request.headers["Authorization"]&.remove(/^Bearer /)
         user = AuthService.find_user_by_token(token)
         return render json: { error: "请先登录" }, status: :unauthorized unless user
+
+        PlayerActivityLogger.log!(
+          user, :api_read,
+          category: "api",
+          action: "auth#me",
+          request_method: request.request_method,
+          request_path: request.fullpath,
+          payload: { endpoint: "auth/me" }
+        )
 
         character = user.active_character
         character&.apply_stat_decay!

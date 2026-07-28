@@ -65,6 +65,9 @@ Rails.application.routes.draw do
       post "map/scenic/check_beacon", to: "map#check_beacon"
       post "map/scenic/complete_task", to: "map#complete_task"
 
+      # 客户端埋点上报
+      post "tracking/events", to: "tracking#create"
+
       # 传感器触发（玩家端）
       post "sensors/trigger", to: "sensors#trigger"
 
@@ -91,6 +94,7 @@ Rails.application.routes.draw do
         resources :map_tasks, path: "tasks"
         get "player_activity", to: "player_activity#index"
         get "users/:user_id/activity", to: "player_activity#user_summary"
+        get "users/:user_id/flow", to: "player_activity#user_flow"
       end
     end
   end

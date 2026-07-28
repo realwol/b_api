@@ -20,6 +20,7 @@ module Api
             trigger_types: MapTriggerPoint::TRIGGER_TYPES,
             task_types: MapTask::TASK_TYPES,
             activity_types: PlayerActivityLog::ACTIVITY_TYPES,
+            activity_categories: PlayerActivityLog::CATEGORIES,
             zone_types: MapZone::ZONE_TYPES
           }
         end
