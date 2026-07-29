@@ -93,6 +93,8 @@ Rails.application.routes.draw do
         resources :map_trigger_points, path: "trigger_points"
         resources :map_tasks, path: "tasks"
         get "player_activity", to: "player_activity#index"
+        get "player_activity/search", to: "player_activity#search"
+        get "player_activity/filters", to: "player_activity#filters"
         get "users/:user_id/activity", to: "player_activity#user_summary"
         get "users/:user_id/flow", to: "player_activity#user_flow"
       end
